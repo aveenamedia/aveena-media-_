@@ -21,7 +21,7 @@ export default function App() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('Home');
+  const [activeTab, setActiveTab] = useState('Home'); // 'Home' | 'Drama' | 'Filimaan' | 'Kartoonno' | 'Warar'
 
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('aveena_current_user');
@@ -49,10 +49,27 @@ export default function App() {
   // Admin Add / Edit State
   const [editingMovieId, setEditingMovieId] = useState(null);
   const [movieTitle, setMovieTitle] = useState('');
+  const [movieCategory, setMovieCategory] = useState('Filimaan'); // Category
   const [movieImage, setMovieImage] = useState('');
   const [movieVideoUrl, setMovieVideoUrl] = useState('');
   const [movieDesc, setMovieDesc] = useState('');
   const [movieIsVip, setMovieIsVip] = useState(false);
+
+  // Nadiifi oo habeey Link-yada (YouTube ama Fembed)
+  const formatVideoUrl = (url) => {
+    if (!url) return '';
+    let clean = url.trim();
+    if (clean.includes('<iframe')) {
+      const match = clean.match(/src=["'](.*?)["']/);
+      if (match) clean = match[1];
+    }
+    if (clean.includes('youtube.com/watch?v=')) {
+      clean = clean.replace('watch?v=', 'embed/');
+    } else if (clean.includes('youtu.be/')) {
+      clean = clean.replace('youtu.be/', 'youtube.com/embed/');
+    }
+    return clean;
+  };
 
   // KASOO QAAD FILIMADA SUPABASE
   const fetchMoviesFromSupabase = async () => {
@@ -60,33 +77,11 @@ export default function App() {
       setLoading(true);
       const res = await fetch(`${SUPABASE_URL}/rest/v1/movies?select=*&order=id.desc`, { headers: HEADERS });
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setMovies(data);
-        if (!selectedMovie) setSelectedMovie(data[0]);
-      } else {
-        // Haddii Supabase faaruq tahay ku dar kuwii asalka ahaa
-        setMovies([
-          {
-            id: 1,
-            title: "How to train your dragon",
-            year: "2019",
-            rating: "8.5",
-            is_vip: false,
-            image: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80",
-            description: "Hiccup iyo Toothless oo bilaabaya tacabirkoodii ugu weynaa.",
-            video_url: "https://fembed.co/embed/bW-8l_ofHNlcv"
-          },
-          {
-            id: 2,
-            title: "Central Intelligence",
-            year: "2016",
-            rating: "7.8",
-            is_vip: true,
-            image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80",
-            description: "Dwayne Johnson iyo Kevin Hart oo ku jira filim qosol iyo dagaal ah.",
-            video_url: "https://fembed.co/embed/bW-8l_ofHNlcv"
-          }
-        ]);
+        if (data.length > 0 && !selectedMovie) {
+          setSelectedMovie(data[0]);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -108,6 +103,7 @@ export default function App() {
     e.preventDefault();
     setAuthError('');
 
+    // Admin Credentials
     if (authEmail.trim().toLowerCase() === 'admin@aveena.com' && authPassword === 'admin123') {
       const adminUser = { name: 'Super Admin', email: authEmail, role: 'admin' };
       setCurrentUser(adminUser);
@@ -119,7 +115,7 @@ export default function App() {
 
     if (authMode === 'register') {
       if (!authName || !authEmail || !authPassword) {
-        setAuthError('Fadlan buuxi dhammaan meelaha bannaan.');
+        setAuthError('Fadlan buuxi meelaha bannaan.');
         return;
       }
       const newUser = { name: authName, email: authEmail, role: 'user' };
@@ -150,7 +146,7 @@ export default function App() {
     localStorage.removeItem('aveena_current_user');
   };
 
-  // ADMIN SAVE MOVIE
+  // ADMIN: Save Movie directly to Supabase
   const handleSaveMovie = async (e) => {
     e.preventDefault();
     if (!movieTitle || !movieVideoUrl) {
@@ -158,19 +154,22 @@ export default function App() {
       return;
     }
 
+    const cleanedUrl = formatVideoUrl(movieVideoUrl);
+
     if (editingMovieId) {
       await fetch(`${SUPABASE_URL}/rest/v1/movies?id=eq.${editingMovieId}`, {
         method: 'PATCH',
         headers: HEADERS,
         body: JSON.stringify({
           title: movieTitle,
+          year: movieCategory, // Category ahaan u keydi
           image: movieImage,
-          video_url: movieVideoUrl,
+          video_url: cleanedUrl,
           description: movieDesc,
           is_vip: movieIsVip
         })
       });
-      alert('Filimka si toos ah ayaa wax looga beddelay!');
+      alert('Filimka si guul leh ayaa loo beddelay!');
       setEditingMovieId(null);
     } else {
       await fetch(`${SUPABASE_URL}/rest/v1/movies`, {
@@ -178,15 +177,15 @@ export default function App() {
         headers: HEADERS,
         body: JSON.stringify({
           title: movieTitle,
-          year: "2026",
+          year: movieCategory, // Category ahaan u keydi
           rating: "9.0",
           is_vip: movieIsVip,
           image: movieImage || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80",
           description: movieDesc || "Filim cusub oo AVEENA MEDIA.",
-          video_url: movieVideoUrl
+          video_url: cleanedUrl
         })
       });
-      alert('Filim cusub ayaa la daabacay!');
+      alert('Filim cusub ayaa toos loogu daray Database-ka!');
     }
 
     setMovieTitle('');
@@ -200,6 +199,7 @@ export default function App() {
   const startEditing = (movie) => {
     setEditingMovieId(movie.id);
     setMovieTitle(movie.title);
+    setMovieCategory(movie.year || 'Filimaan');
     setMovieImage(movie.image || '');
     setMovieVideoUrl(movie.video_url || '');
     setMovieDesc(movie.description || '');
@@ -208,7 +208,7 @@ export default function App() {
   };
 
   const handleDeleteMovie = async (id) => {
-    if (confirm('Ma hubtaa inaad filimkan tirtirto?')) {
+    if (confirm('Ma hubtaa inaad tirtirto filimkan?')) {
       await fetch(`${SUPABASE_URL}/rest/v1/movies?id=eq.${id}`, {
         method: 'DELETE',
         headers: HEADERS
@@ -223,18 +223,19 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Filter Search
-  const filteredMovies = movies.filter(m => 
-    m.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Kala saarida Qaybaha (Filter Categories)
+  const filteredMovies = movies.filter(m => {
+    const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = activeTab === 'Home' ? true : m.year === activeTab;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="min-h-screen bg-[#070b14] text-white font-sans pb-28 select-none">
       
-      {/* 1. TOP HEADER (EXACT LIKE SCREENSHOT) */}
+      {/* 1. TOP HEADER */}
       <header className="sticky top-0 z-40 bg-[#070b14]/95 backdrop-blur-md px-4 py-3 flex items-center justify-between gap-3 border-b border-slate-900">
-        {/* Logo */}
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('browse')}>
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setActiveTab('Home'); setCurrentView('browse'); }}>
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-700 to-blue-500 text-white flex items-center justify-center font-black shadow-lg shadow-blue-600/30">
             <span className="text-base ml-0.5">▶</span>
           </div>
@@ -244,7 +245,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search */}
         <div className="relative flex-1 max-w-[210px]">
           <span className="absolute left-3.5 top-2.5 text-slate-400 text-xs">🔍</span>
           <input 
@@ -256,7 +257,7 @@ export default function App() {
           />
         </div>
 
-        {/* User Avatar Circle */}
+        {/* Avatar / Admin Entry */}
         <div 
           onClick={() => {
             if (currentUser?.role === 'admin') {
@@ -273,18 +274,18 @@ export default function App() {
         </div>
       </header>
 
-      {/* 2. MAIN VIEW */}
+      {/* 2. MAIN VIEWS */}
       {currentView === 'admin' ? (
         /* ADMIN VIEW */
         <div className="max-w-xl mx-auto p-4 animate-fade-in">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-lg font-black text-blue-400">⚙️ Maamulka (Admin Panel)</h2>
+            <h2 className="text-lg font-black text-blue-400">⚙️ Maamulka (Geli Video Cusub)</h2>
             <button onClick={() => setCurrentView('browse')} className="text-xs text-blue-400 font-bold">← Bogga Hore</button>
           </div>
 
           <div className="bg-[#0f172a] p-5 rounded-3xl border border-blue-900/40 mb-6 shadow-xl">
             <h3 className="font-bold text-sm text-white mb-3">
-              {editingMovieId ? '✏️ Wax ka beddel Filimka' : '➕ Ku dar Filim Cusub'}
+              {editingMovieId ? '✏️ Wax ka beddel Filimka' : '➕ Ku dar Video / Filim Cusub'}
             </h3>
             
             <form onSubmit={handleSaveMovie} className="space-y-3">
@@ -301,19 +302,32 @@ export default function App() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-400">Link-ga Video-ga Fembed</label>
+                <label className="text-xs font-semibold text-slate-400">Dooro Qaybta (Category)</label>
+                <select
+                  value={movieCategory}
+                  onChange={(e) => setMovieCategory(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#070b14] border border-slate-800 rounded-xl text-xs text-white focus:outline-blue-500">
+                  <option value="Filimaan">Filimaan</option>
+                  <option value="Drama">Drama</option>
+                  <option value="Kartoonno">Kartoonno</option>
+                  <option value="Warar">Warar</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-400">Link-ga Video-ga (Fembed / YouTube)</label>
                 <input 
                   type="text" 
                   value={movieVideoUrl} 
                   onChange={(e) => setMovieVideoUrl(e.target.value)}
-                  placeholder="https://fembed.co/embed/..."
+                  placeholder="Geli link-ga video-ga..."
                   className="w-full mt-1 p-2.5 bg-[#070b14] border border-slate-800 rounded-xl text-xs text-white focus:outline-blue-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-400">Link-ga Sawirka (Poster Image)</label>
+                <label className="text-xs font-semibold text-slate-400">Link-ga Sawirka Poster-ka (Optional)</label>
                 <input 
                   type="text" 
                   value={movieImage} 
@@ -324,7 +338,7 @@ export default function App() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-400">Faahfaahin</label>
+                <label className="text-xs font-semibold text-slate-400">Faahfaahin kooban</label>
                 <textarea 
                   value={movieDesc} 
                   onChange={(e) => setMovieDesc(e.target.value)}
@@ -346,7 +360,7 @@ export default function App() {
 
               <div className="flex gap-2 pt-2">
                 <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md">
-                  {editingMovieId ? '💾 Keydi Isbeddelka' : '➕ Daabac Filimka'}
+                  {editingMovieId ? '💾 Keydi Isbeddelka' : '➕ Daabac Video-ga'}
                 </button>
                 {editingMovieId && (
                   <button type="button" onClick={() => setEditingMovieId(null)} className="px-4 bg-slate-800 text-white font-bold rounded-xl text-xs">
@@ -357,7 +371,7 @@ export default function App() {
             </form>
           </div>
 
-          {/* Movies List */}
+          {/* Existing Movies List */}
           <div className="bg-[#0f172a] p-4 rounded-3xl border border-blue-900/40">
             <h3 className="font-bold text-sm text-white mb-3">Filimada Yaalla ({movies.length})</h3>
             <div className="space-y-2">
@@ -367,7 +381,7 @@ export default function App() {
                     <img src={m.image} alt="" className="w-10 h-10 object-cover rounded-xl" />
                     <div>
                       <h4 className="text-xs font-bold text-white">{m.title}</h4>
-                      <span className="text-[10px] text-blue-400">{m.is_vip ? '👑 VIP' : 'Free'}</span>
+                      <span className="text-[10px] text-blue-400">{m.year || 'Filimaan'} • {m.is_vip ? '👑 VIP' : 'Free'}</span>
                     </div>
                   </div>
                   <div className="flex gap-1.5">
@@ -380,12 +394,11 @@ export default function App() {
           </div>
         </div>
       ) : currentView === 'browse' ? (
-        /* BROWSE VIEW (EXACT LIKE SCREENSHOT) */
+        /* BROWSE VIEW */
         <main className="p-4">
-          {/* HERO BANNER CARD */}
-          {movies.length > 0 && (
-            <div className="relative w-full rounded-3xl overflow-hidden border border-blue-900/40 bg-gradient-to-b from-[#131d35] to-[#0a0f1d] p-5 shadow-2xl">
-              {/* Background Poster Overlay */}
+          {/* BANNER (Kaliya Home-ka ayuu ka muuqanayaa) */}
+          {activeTab === 'Home' && movies.length > 0 && (
+            <div className="relative w-full rounded-3xl overflow-hidden border border-blue-900/40 bg-gradient-to-b from-[#131d35] to-[#0a0f1d] p-5 shadow-2xl mb-6">
               <div className="absolute inset-0 z-0">
                 <img 
                   src={movies[0]?.image} 
@@ -396,7 +409,6 @@ export default function App() {
               </div>
 
               <div className="relative z-10 flex flex-col justify-end pt-8">
-                {/* Badge: KU SOO DHAWOW AVEENA */}
                 <div className="inline-flex items-center gap-1.5 bg-[#0f1f3d]/90 border border-blue-500/30 text-blue-400 text-[10px] font-extrabold px-3.5 py-1.5 rounded-full w-fit mb-3">
                   KU SOO DHAWOW AVEENA
                 </div>
@@ -404,73 +416,71 @@ export default function App() {
                 <h2 className="text-2xl font-black text-white mb-1 leading-tight">
                   {movies[0]?.title}
                 </h2>
-                <span className="text-xs text-slate-400 font-medium mb-5 block">Film</span>
+                <span className="text-xs text-slate-400 font-medium mb-5 block">{movies[0]?.year || 'Filim'}</span>
 
-                {/* Big Blue Button: Daawo Hadda */}
                 <button 
                   onClick={() => handleWatchMovie(movies[0])}
                   className="bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs px-7 py-3 rounded-full flex items-center gap-2 shadow-lg shadow-blue-600/40 w-fit active:scale-95 transition">
                   <span className="text-sm">▶</span> Daawo Hadda
                 </button>
-
-                {/* Carousel Indicator Pills */}
-                <div className="flex items-center gap-2 mt-8">
-                  <span className="w-9 h-3 bg-blue-600 rounded-full"></span>
-                  <span className="w-8 h-3 bg-blue-600/80 rounded-full"></span>
-                  <span className="w-8 h-3 bg-blue-600/80 rounded-full"></span>
-                  <span className="w-8 h-3 bg-blue-600/80 rounded-full"></span>
-                  <span className="w-8 h-3 bg-blue-600/80 rounded-full"></span>
-                  <span className="w-8 h-3 bg-blue-600/80 rounded-full"></span>
-                </div>
               </div>
             </div>
           )}
 
-          {/* SECTION HEADER: Dhammaan Videos-ka */}
-          <div className="flex justify-between items-center mt-6 mb-3 px-1">
+          {/* Section Header */}
+          <div className="flex justify-between items-center mb-4 px-1">
             <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-              <span>🔥</span> Dhammaan Videos-ka
+              <span>🔥</span> {activeTab === 'Home' ? 'Dhammaan Videos-ka' : `Qaybta: ${activeTab}`}
             </h3>
             <span className="text-xs text-blue-400 font-bold">{filteredMovies.length} Videos</span>
           </div>
 
-          {/* MOVIE GRID (EXACT CARDS) */}
-          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
-            {filteredMovies.map((movie) => (
-              <div 
-                key={movie.id}
-                onClick={() => handleWatchMovie(movie)}
-                className="group relative bg-[#0e1628] rounded-2xl overflow-hidden border border-slate-800/80 shadow-md hover:border-blue-900 transition cursor-pointer">
-                
-                {/* Poster */}
-                <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-900">
-                  <img 
-                    src={movie.image} 
-                    alt={movie.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  />
+          {/* Empty State */}
+          {filteredMovies.length === 0 ? (
+            <div className="text-center py-16 bg-[#0e1628] rounded-3xl border border-slate-800">
+              <span className="text-3xl">🎬</span>
+              <p className="text-xs text-slate-400 mt-2">Weli wax video ah laguma darin qaybta <b>{activeTab}</b>.</p>
+              <button 
+                onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+                className="mt-3 text-xs bg-blue-600 text-white font-bold px-4 py-2 rounded-xl">
+                Gal Admin ahaan si aad ugu darto ➕
+              </button>
+            </div>
+          ) : (
+            /* Movie Grid */
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+              {filteredMovies.map((movie) => (
+                <div 
+                  key={movie.id}
+                  onClick={() => handleWatchMovie(movie)}
+                  className="group relative bg-[#0e1628] rounded-2xl overflow-hidden border border-slate-800/80 shadow-md hover:border-blue-900 transition cursor-pointer">
+                  
+                  <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-900">
+                    <img 
+                      src={movie.image} 
+                      alt={movie.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    />
 
-                  {/* Golden VIP Badge */}
-                  {movie.is_vip && (
-                    <span className="absolute top-2 left-2 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-md shadow flex items-center gap-1">
-                      👑 VIP
-                    </span>
-                  )}
+                    {movie.is_vip && (
+                      <span className="absolute top-2 left-2 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-md shadow flex items-center gap-1">
+                        👑 VIP
+                      </span>
+                    )}
 
-                  {/* Little Blue Play Circle Button (Like Screenshot) */}
-                  <div className="absolute bottom-2.5 right-2.5 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/50">
-                    <span className="text-xs ml-0.5">▶</span>
+                    <div className="absolute bottom-2.5 right-2.5 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/50">
+                      <span className="text-xs ml-0.5">▶</span>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5">
+                    <h4 className="font-bold text-xs text-white truncate">{movie.title}</h4>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{movie.year || 'Filim'}</p>
                   </div>
                 </div>
-
-                {/* Title */}
-                <div className="p-2.5">
-                  <h4 className="font-bold text-xs text-white truncate">{movie.title}</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{movie.year || '2026'}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </main>
       ) : (
         /* WATCH / PLAYER VIEW */
@@ -485,7 +495,7 @@ export default function App() {
             <iframe
               src={selectedMovie?.video_url}
               className="absolute inset-0 w-full h-full border-0"
-              allow="autoplay; fullscreen; encrypted-media"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               allowFullScreen
               title="Player"
             />
@@ -664,39 +674,98 @@ export default function App() {
         </div>
       )}
 
-      {/* 5. BOTTOM NAVIGATION BAR (EXACT AS SCREENSHOT) */}
+      {/* 5. AUTH MODAL */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0e1628] border border-blue-900/40 w-full max-w-sm rounded-3xl p-5 relative shadow-2xl">
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
+
+            <h3 className="text-lg font-black text-center text-blue-400 mb-1">
+              {authMode === 'login' ? 'Gal Koontada (Login)' : 'Diiwaangeli Koonto'}
+            </h3>
+
+            {authError && <div className="p-2 bg-red-950/60 border border-red-800 text-red-400 text-xs rounded-xl text-center mb-3">{authError}</div>}
+
+            <form onSubmit={handleAuth} className="space-y-3">
+              {authMode === 'register' && (
+                <div>
+                  <label className="text-xs text-slate-400 font-semibold">Magacaaga</label>
+                  <input 
+                    type="text" 
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    placeholder="Magaca..."
+                    className="w-full mt-1 p-2.5 bg-[#070b14] border border-slate-800 rounded-xl text-xs text-white"
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs text-slate-400 font-semibold">Gmail</label>
+                <input 
+                  type="email" 
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  placeholder="admin@aveena.com"
+                  className="w-full mt-1 p-2.5 bg-[#070b14] border border-slate-800 rounded-xl text-xs text-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 font-semibold">Password</label>
+                <input 
+                  type="password" 
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder="admin123"
+                  className="w-full mt-1 p-2.5 bg-[#070b14] border border-slate-800 rounded-xl text-xs text-white"
+                  required
+                />
+              </div>
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md mt-2">
+                {authMode === 'login' ? 'Gal' : 'Is-diiwaangeli'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. BOTTOM NAVIGATION (NOW 100% WORKING & FILTERING!) */}
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-[#070b14]/95 backdrop-blur-md border-t border-slate-900 py-2.5 flex justify-around items-center text-[10px] text-slate-400">
         <button 
           onClick={() => { setActiveTab('Home'); setCurrentView('browse'); }}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'Home' ? 'text-blue-500 font-bold' : ''}`}>
+          className={`flex flex-col items-center gap-1 ${activeTab === 'Home' && currentView === 'browse' ? 'text-blue-500 font-bold' : ''}`}>
           <span className="text-base">🏠</span>
           <span>Home</span>
         </button>
 
         <button 
           onClick={() => { setActiveTab('Drama'); setCurrentView('browse'); }}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'Drama' ? 'text-blue-500 font-bold' : ''}`}>
+          className={`flex flex-col items-center gap-1 ${activeTab === 'Drama' && currentView === 'browse' ? 'text-blue-500 font-bold' : ''}`}>
           <span className="text-base">▶</span>
           <span>Drama</span>
         </button>
 
         <button 
           onClick={() => { setActiveTab('Filimaan'); setCurrentView('browse'); }}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'Filimaan' ? 'text-blue-500 font-bold' : ''}`}>
+          className={`flex flex-col items-center gap-1 ${activeTab === 'Filimaan' && currentView === 'browse' ? 'text-blue-500 font-bold' : ''}`}>
           <span className="text-base">🎴</span>
           <span>Filimaan</span>
         </button>
 
         <button 
           onClick={() => { setActiveTab('Kartoonno'); setCurrentView('browse'); }}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'Kartoonno' ? 'text-blue-500 font-bold' : ''}`}>
+          className={`flex flex-col items-center gap-1 ${activeTab === 'Kartoonno' && currentView === 'browse' ? 'text-blue-500 font-bold' : ''}`}>
           <span className="text-base">📑</span>
           <span>Kartoonno</span>
         </button>
 
         <button 
           onClick={() => { setActiveTab('Warar'); setCurrentView('browse'); }}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'Warar' ? 'text-blue-500 font-bold' : ''}`}>
+          className={`flex flex-col items-center gap-1 ${activeTab === 'Warar' && currentView === 'browse' ? 'text-blue-500 font-bold' : ''}`}>
           <span className="text-base">📰</span>
           <span>Warar</span>
         </button>
@@ -711,4 +780,4 @@ export default function App() {
 
     </div>
   );
-                  }
+        }
