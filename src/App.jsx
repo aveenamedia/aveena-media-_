@@ -41,8 +41,14 @@ const INITIAL_MOVIES = [
   }
 ];
 
+// 3-da Lambar ee WhatsApp
+const WHATSAPP_NUMBERS = [
+  { label: "WhatsApp 1 (Hormuud)", number: "252771795014", display: "77 179 5014" },
+  { label: "WhatsApp 2 (Hormuud)", number: "252610970464", display: "61 097 0464" },
+  { label: "WhatsApp 3 (Somtel)", number: "252686273958", display: "68 627 3958" }
+];
+
 export default function App() {
-  // Xogaha lagu keydiyo Browser-ka (LocalStorage)
   const [movies, setMovies] = useState(() => {
     const saved = localStorage.getItem('aveena_movies');
     return saved ? JSON.parse(saved) : INITIAL_MOVIES;
@@ -64,26 +70,27 @@ export default function App() {
 
   // Modals
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [authMode, setAuthMode] = useState('login');
   const [showVipModal, setShowVipModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [vipStep, setVipStep] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState('EVC PLUS');
+  const [paymentMethod, setPaymentMethod] = useState('HORMUUD'); // 'HORMUUD' | 'SOMTEL'
   const [planPrice, setPlanPrice] = useState('3');
 
-  // Form Inputs
+  // Auth Inputs
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Admin New Movie Inputs
-  const [newTitle, setNewTitle] = useState('');
-  const [newImage, setNewImage] = useState('');
-  const [newVideoUrl, setNewVideoUrl] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newIsVip, setNewIsVip] = useState(false);
+  // Admin Add / Edit State
+  const [editingMovieId, setEditingMovieId] = useState(null);
+  const [movieTitle, setMovieTitle] = useState('');
+  const [movieImage, setMovieImage] = useState('');
+  const [movieVideoUrl, setMovieVideoUrl] = useState('');
+  const [movieDesc, setMovieDesc] = useState('');
+  const [movieIsVip, setMovieIsVip] = useState(false);
 
-  // Save to LocalStorage whenever state changes
   useEffect(() => {
     localStorage.setItem('aveena_movies', JSON.stringify(movies));
   }, [movies]);
@@ -96,12 +103,12 @@ export default function App() {
     localStorage.setItem('aveena_current_user', JSON.stringify(currentUser));
   }, [currentUser]);
 
-  // LOGIN & REGISTER HANDLER
+  // LOGIN & REGISTER
   const handleAuth = (e) => {
     e.preventDefault();
     setAuthError('');
 
-    // 1. ADMIN LOGIN CHECK
+    // Admin Credentials
     if (authEmail.trim().toLowerCase() === 'admin@aveena.com' && authPassword === 'admin123') {
       const adminUser = { name: 'Super Admin', email: authEmail, role: 'admin' };
       setCurrentUser(adminUser);
@@ -111,7 +118,6 @@ export default function App() {
       return;
     }
 
-    // 2. USER REGISTER
     if (authMode === 'register') {
       if (!authName || !authEmail || !authPassword) {
         setAuthError('Fadlan buuxi dhammaan meelaha bannaan.');
@@ -128,7 +134,6 @@ export default function App() {
       setShowAuthModal(false);
       resetAuthForm();
     } else {
-      // 3. REGULAR USER LOGIN
       const foundUser = users.find(u => u.email.toLowerCase() === authEmail.toLowerCase() && u.password === authPassword);
       if (foundUser) {
         setCurrentUser(foundUser);
@@ -153,35 +158,79 @@ export default function App() {
     localStorage.removeItem('aveena_current_user');
   };
 
-  // ADMIN: Add New Movie
-  const handleAddMovie = (e) => {
+  // ADMIN: Add or Update Movie
+  const handleSaveMovie = (e) => {
     e.preventDefault();
-    if (!newTitle || !newVideoUrl) {
+    if (!movieTitle || !movieVideoUrl) {
       alert('Geli ugu yaraan Cinwaanka iyo Link-ga Fembed');
       return;
     }
-    const created = {
-      id: Date.now(),
-      title: newTitle,
-      year: "2026",
-      rating: "9.0",
-      isVip: newIsVip,
-      image: newImage || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80",
-      description: newDesc || "Filim cusub oo AVEENA MEDIA lagu soo kordhiyay.",
-      episodes: [
-        { id: 1, title: "Qaybta 1-aad (Full)", duration: "25m", videoUrl: newVideoUrl }
-      ]
-    };
-    setMovies([created, ...movies]);
-    setNewTitle('');
-    setNewImage('');
-    setNewVideoUrl('');
-    setNewDesc('');
-    setNewIsVip(false);
-    alert('Filimka si guul leh ayaa loogu daray!');
+
+    if (editingMovieId) {
+      // Update existing movie
+      setMovies(movies.map(m => {
+        if (m.id === editingMovieId) {
+          return {
+            ...m,
+            title: movieTitle,
+            image: movieImage || m.image,
+            description: movieDesc,
+            isVip: movieIsVip,
+            episodes: [
+              { ...m.episodes[0], videoUrl: movieVideoUrl }
+            ]
+          };
+        }
+        return m;
+      }));
+      setEditingMovieId(null);
+      alert('Filimka si guul leh ayaa wax looga beddelay!');
+    } else {
+      // Add new movie
+      const created = {
+        id: Date.now(),
+        title: movieTitle,
+        year: "2026",
+        rating: "9.0",
+        isVip: movieIsVip,
+        image: movieImage || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80",
+        description: movieDesc || "Filim cusub oo AVEENA MEDIA lagu soo kordhiyay.",
+        episodes: [
+          { id: 1, title: "Qaybta 1-aad (Full)", duration: "25m", videoUrl: movieVideoUrl }
+        ]
+      };
+      setMovies([created, ...movies]);
+      alert('Filim cusub ayaa lagu daray!');
+    }
+
+    // Reset Form
+    setMovieTitle('');
+    setMovieImage('');
+    setMovieVideoUrl('');
+    setMovieDesc('');
+    setMovieIsVip(false);
   };
 
-  // Delete Movie (Admin)
+  // Populate form for editing
+  const startEditing = (movie) => {
+    setEditingMovieId(movie.id);
+    setMovieTitle(movie.title);
+    setMovieImage(movie.image);
+    setMovieVideoUrl(movie.episodes[0]?.videoUrl || '');
+    setMovieDesc(movie.description);
+    setMovieIsVip(movie.isVip);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEditing = () => {
+    setEditingMovieId(null);
+    setMovieTitle('');
+    setMovieImage('');
+    setMovieVideoUrl('');
+    setMovieDesc('');
+    setMovieIsVip(false);
+  };
+
   const handleDeleteMovie = (id) => {
     if (confirm('Ma hubtaa inaad filimkan tirtirto?')) {
       setMovies(movies.filter(m => m.id !== id));
@@ -195,13 +244,22 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // USSD Codes
+  const getDialCode = () => {
+    if (paymentMethod === 'HORMUUD') {
+      return `*712*771795014*${planPrice}#`;
+    } else {
+      return `*712*615456085*${planPrice}#`; // Somtel / Kii hore
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-24 select-none">
       
       {/* 1. TOP HEADER (Blue & White) */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 py-3.5 flex items-center justify-between border-b border-blue-100 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-blue-100 shadow-sm">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('browse')}>
-          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-blue-500/30">
+          <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-blue-500/30">
             A
           </div>
           <h1 className="text-xl font-black tracking-wide text-blue-600">AVEENA <span className="text-slate-800 text-xs font-semibold">MEDIA</span></h1>
@@ -212,7 +270,7 @@ export default function App() {
             <button 
               onClick={() => setCurrentView(currentView === 'admin' ? 'browse' : 'admin')}
               className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow">
-              ⚙️ Admin Panel
+              ⚙️ Admin
             </button>
           )}
 
@@ -225,39 +283,42 @@ export default function App() {
           {currentUser ? (
             <button 
               onClick={handleLogout}
-              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200">
+              className="text-xs bg-slate-100 text-slate-700 font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200">
               Ka bax
             </button>
           ) : (
             <button 
               onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
-              className="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold px-3 py-1.5 rounded-lg border border-blue-200">
-              Gal / Login
+              className="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded-lg border border-blue-200">
+              Gal
             </button>
           )}
         </div>
       </header>
 
-      {/* 2. VIEWS */}
+      {/* 2. MAIN VIEWS */}
       {currentView === 'admin' ? (
-        /* ADMIN DASHBOARD */
+        /* ADMIN VIEW */
         <div className="max-w-2xl mx-auto p-4 animate-fade-in">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-black text-blue-700">⚙️ Qaybta Maamulka (Admin Panel)</h2>
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-xl font-black text-blue-700">⚙️ Maamulka (Admin Panel)</h2>
             <button onClick={() => setCurrentView('browse')} className="text-xs text-blue-600 font-bold">← Bogga Hore</button>
           </div>
 
-          {/* Form to Add New Movie */}
+          {/* Form: Add or Edit */}
           <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm mb-6">
-            <h3 className="font-bold text-sm text-slate-800 mb-3">➕ Ku dar Filim / Musalsal Cusub</h3>
-            <form onSubmit={handleAddMovie} className="space-y-3">
+            <h3 className="font-bold text-sm text-slate-800 mb-3">
+              {editingMovieId ? '✏️ Wax ka beddel Filimka' : '➕ Ku dar Filim Cusub'}
+            </h3>
+            
+            <form onSubmit={handleSaveMovie} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-600">Cinwaanka Filimka</label>
                 <input 
                   type="text" 
-                  value={newTitle} 
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Tusaale: Filim Cusub 2026"
+                  value={movieTitle} 
+                  onChange={(e) => setMovieTitle(e.target.value)}
+                  placeholder="Cinwaanka..."
                   className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-blue-600"
                   required
                 />
@@ -267,8 +328,8 @@ export default function App() {
                 <label className="text-xs font-semibold text-slate-600">Link-ga Video-ga Fembed</label>
                 <input 
                   type="text" 
-                  value={newVideoUrl} 
-                  onChange={(e) => setNewVideoUrl(e.target.value)}
+                  value={movieVideoUrl} 
+                  onChange={(e) => setMovieVideoUrl(e.target.value)}
                   placeholder="https://fembed.co/embed/..."
                   className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-blue-600"
                   required
@@ -276,22 +337,22 @@ export default function App() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-600">Link-ga Sawirka Poster-ka (Ikhtiyaari)</label>
+                <label className="text-xs font-semibold text-slate-600">Link-ga Sawirka (Poster Image)</label>
                 <input 
                   type="text" 
-                  value={newImage} 
-                  onChange={(e) => setNewImage(e.target.value)}
+                  value={movieImage} 
+                  onChange={(e) => setMovieImage(e.target.value)}
                   placeholder="https://..."
                   className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-blue-600"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-600">Faahfaahin kooban</label>
+                <label className="text-xs font-semibold text-slate-600">Faahfaahin</label>
                 <textarea 
-                  value={newDesc} 
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Sheekada filimka..."
+                  value={movieDesc} 
+                  onChange={(e) => setMovieDesc(e.target.value)}
+                  placeholder="Faahfaahin kooban..."
                   className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-blue-600"
                 />
               </div>
@@ -299,38 +360,52 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <input 
                   type="checkbox" 
-                  id="vipCheck" 
-                  checked={newIsVip} 
-                  onChange={(e) => setNewIsVip(e.target.checked)}
+                  id="vipOption" 
+                  checked={movieIsVip} 
+                  onChange={(e) => setMovieIsVip(e.target.checked)}
                   className="rounded text-blue-600"
                 />
-                <label htmlFor="vipCheck" className="text-xs font-semibold text-slate-700">Kaliya VIP miyaa daawan kara?</label>
+                <label htmlFor="vipOption" className="text-xs font-semibold text-slate-700">Miyaa laga dhigaa VIP?</label>
               </div>
 
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-blue-500/20">
-                Daabac Filimka
-              </button>
+              <div className="flex gap-2 pt-2">
+                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md">
+                  {editingMovieId ? '💾 Keydi Isbeddelka' : '➕ Daabac Filimka'}
+                </button>
+                {editingMovieId && (
+                  <button type="button" onClick={cancelEditing} className="px-4 bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
+                    Ka noqo
+                  </button>
+                )}
+              </div>
             </form>
           </div>
 
-          {/* Manage Existing Movies */}
+          {/* Movies List with Edit & Delete */}
           <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm">
-            <h3 className="font-bold text-sm text-slate-800 mb-3">Filimada Hadda Yaalla ({movies.length})</h3>
-            <div className="space-y-2">
+            <h3 className="font-bold text-sm text-slate-800 mb-3">Liiska Filimada ({movies.length})</h3>
+            <div className="space-y-2.5">
               {movies.map(m => (
-                <div key={m.id} className="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-200/60">
                   <div className="flex items-center gap-3">
-                    <img src={m.image} alt="" className="w-10 h-10 object-cover rounded-lg" />
+                    <img src={m.image} alt="" className="w-11 h-11 object-cover rounded-lg shadow-sm" />
                     <div>
                       <h4 className="text-xs font-bold text-slate-800">{m.title}</h4>
-                      <span className="text-[10px] text-slate-400">{m.episodes.length} Qaybood</span>
+                      <span className="text-[10px] text-blue-600 font-semibold">{m.isVip ? '👑 VIP' : 'Bilaash'}</span>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => handleDeleteMovie(m.id)}
-                    className="text-red-600 hover:text-red-700 text-xs font-bold px-2 py-1 bg-red-50 rounded-lg">
-                    Tirtir
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => startEditing(m)}
+                      className="text-blue-600 bg-blue-50 hover:bg-blue-100 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-blue-200">
+                      ✏️ Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteMovie(m.id)}
+                      className="text-red-600 bg-red-50 hover:bg-red-100 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-red-200">
+                      Tirtir
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -339,7 +414,7 @@ export default function App() {
       ) : currentView === 'browse' ? (
         /* BROWSE VIEW */
         <main>
-          {/* HERO BANNER (Blue Accent) */}
+          {/* Banner */}
           <div className="relative w-full h-80 bg-slate-900 overflow-hidden">
             <img 
               src={movies[0]?.image} 
@@ -354,7 +429,7 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => handleWatchMovie(movies[0])}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-2">
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/30">
                   ▶ Daawad Hadda
                 </button>
                 <button 
@@ -366,7 +441,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* MOVIE GRID (White Cards, Blue Borders) */}
+          {/* Movies List */}
           <div className="p-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
@@ -382,7 +457,6 @@ export default function App() {
                   onClick={() => handleWatchMovie(movie)}
                   className="group bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-md transition cursor-pointer">
                   
-                  {/* Poster */}
                   <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-100">
                     <img 
                       src={movie.image} 
@@ -409,7 +483,7 @@ export default function App() {
           </div>
         </main>
       ) : (
-        /* WATCH / PLAYER VIEW */
+        /* WATCH VIEW */
         <div className="max-w-3xl mx-auto p-4 animate-fade-in">
           <button 
             onClick={() => setCurrentView('browse')}
@@ -417,7 +491,6 @@ export default function App() {
             ← Ku noqo Liiska Filimada
           </button>
 
-          {/* Video Player */}
           <div className="relative w-full pt-[56.25%] bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-200">
             <iframe
               src={selectedEpisode?.videoUrl}
@@ -428,13 +501,11 @@ export default function App() {
             />
           </div>
 
-          {/* Info */}
           <div className="mt-4 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
             <h2 className="text-lg font-black text-slate-900">{selectedMovie.title} - {selectedEpisode?.title}</h2>
             <p className="text-xs text-slate-500 mt-1">{selectedMovie.description}</p>
           </div>
 
-          {/* Episode List */}
           <div className="mt-5">
             <h3 className="font-bold text-sm mb-2 text-slate-800">Qaybaha (Episodes)</h3>
             <div className="space-y-2">
@@ -459,95 +530,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 3. LOGIN & REGISTER MODAL (White & Blue) */}
-      {showAuthModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-100 w-full max-w-sm rounded-3xl p-6 relative shadow-2xl animate-fade-in">
-            <button 
-              onClick={() => setShowAuthModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">✕</button>
-
-            <h3 className="text-xl font-black text-center text-blue-600 mb-1">
-              {authMode === 'login' ? 'Soo Dhawoow!' : 'Sameyso Koonto Cusub'}
-            </h3>
-            <p className="text-xs text-slate-400 text-center mb-5">
-              {authMode === 'login' ? 'Geli Gmail iyo Password-kaaga' : 'Ku biir Aveena Media si aad wax u daawato'}
-            </p>
-
-            {authError && (
-              <div className="mb-4 p-2.5 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl text-center font-medium">
-                {authError}
-              </div>
-            )}
-
-            <form onSubmit={handleAuth} className="space-y-3.5">
-              {authMode === 'register' && (
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Magacaaga oo buuxa</label>
-                  <input 
-                    type="text" 
-                    value={authName}
-                    onChange={(e) => setAuthName(e.target.value)}
-                    placeholder="Magacaaga"
-                    className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-blue-600"
-                    required
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Gmail / Email</label>
-                <input 
-                  type="email" 
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
-                  placeholder="tusaale@gmail.com"
-                  className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-blue-600"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Password</label>
-                <input 
-                  type="password" 
-                  value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-blue-600"
-                  required
-                />
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-blue-500/25">
-                {authMode === 'login' ? 'Gal (Login)' : 'Diiwaangeli Koontada'}
-              </button>
-            </form>
-
-            <div className="mt-4 pt-4 border-t border-slate-100 text-center">
-              {authMode === 'login' ? (
-                <p className="text-xs text-slate-500">
-                  Koonto ma lihid? {' '}
-                  <button onClick={() => { setAuthMode('register'); setAuthError(''); }} className="text-blue-600 font-bold hover:underline">
-                    Is-diiwaangeli
-                  </button>
-                </p>
-              ) : (
-                <p className="text-xs text-slate-500">
-                  Hore ma u lahayd koonto? {' '}
-                  <button onClick={() => { setAuthMode('login'); setAuthError(''); }} className="text-blue-600 font-bold hover:underline">
-                    Gal halkan
-                  </button>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. VIP MODAL (Somali EVC Plus & eDahab Flow) */}
+      {/* 3. VIP PAYMENT MODAL (Hormuud & Somtel) */}
       {showVipModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 w-full max-w-sm rounded-3xl p-5 relative shadow-2xl">
@@ -566,30 +549,46 @@ export default function App() {
               ))}
             </div>
 
+            {/* Step 1: Network Selection */}
             {vipStep === 1 && (
               <div className="space-y-2.5">
-                <p className="text-xs font-semibold text-slate-700">1. Dooro habka lacag-bixinta:</p>
+                <p className="text-xs font-semibold text-slate-700">1. Dooro shirkadda aad ku bixinayso:</p>
+                
+                {/* Hormuud EVC Plus */}
                 <button 
-                  onClick={() => { setPaymentMethod('EVC PLUS'); setVipStep(2); }}
-                  className="w-full p-3 bg-blue-50/50 rounded-xl border border-blue-200 hover:border-blue-600 flex items-center justify-between text-left">
-                  <div>
-                    <h4 className="font-bold text-xs text-blue-600">EVC PLUS</h4>
-                    <p className="text-[10px] text-slate-400">Hormuud Mobile Money</p>
+                  onClick={() => { setPaymentMethod('HORMUUD'); setVipStep(2); }}
+                  className="w-full p-3 bg-emerald-50 rounded-2xl border border-emerald-200 hover:border-emerald-600 flex items-center justify-between text-left transition">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-base shadow">
+                      H
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-emerald-800">EVC PLUS (Hormuud)</h4>
+                      <p className="text-[10px] text-emerald-600">Lambarka: 771795014</p>
+                    </div>
                   </div>
-                  <span className="text-blue-600 text-xs">➔</span>
+                  <span className="text-emerald-700 font-bold text-xs">➔</span>
                 </button>
+
+                {/* Somtel eDahab */}
                 <button 
-                  onClick={() => { setPaymentMethod('EDAHAB'); setVipStep(2); }}
-                  className="w-full p-3 bg-yellow-50/50 rounded-xl border border-yellow-200 hover:border-yellow-600 flex items-center justify-between text-left">
-                  <div>
-                    <h4 className="font-bold text-xs text-yellow-600">EDAHAB</h4>
-                    <p className="text-[10px] text-slate-400">Somtel Mobile Money</p>
+                  onClick={() => { setPaymentMethod('SOMTEL'); setVipStep(2); }}
+                  className="w-full p-3 bg-amber-50 rounded-2xl border border-amber-200 hover:border-amber-600 flex items-center justify-between text-left transition">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-base shadow">
+                      S
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-amber-900">eDAHAB (Somtel)</h4>
+                      <p className="text-[10px] text-amber-600">Lambarkii Hore</p>
+                    </div>
                   </div>
-                  <span className="text-yellow-600 text-xs">➔</span>
+                  <span className="text-amber-700 font-bold text-xs">➔</span>
                 </button>
               </div>
             )}
 
+            {/* Step 2: Plan Selection */}
             {vipStep === 2 && (
               <div className="space-y-2.5">
                 <p className="text-xs font-semibold text-slate-700">2. Dooro Muddada:</p>
@@ -614,19 +613,33 @@ export default function App() {
               </div>
             )}
 
+            {/* Step 3: USSD & Hadda Dir + WhatsApp */}
             {vipStep === 3 && (
               <div className="space-y-3 text-center">
-                <p className="text-xs text-slate-700 font-semibold">3. Wac lambarkan si aad u bixiso:</p>
+                <p className="text-xs text-slate-700 font-semibold">3. Bixi Lacagta ({paymentMethod === 'HORMUUD' ? 'Hormuud' : 'Somtel'}):</p>
+                
                 <div className="bg-blue-50 p-3.5 rounded-2xl border border-blue-200">
-                  <span className="text-[10px] text-slate-500">Koodhka Bixinta ({paymentMethod}):</span>
-                  <div className="text-lg font-black text-blue-700 my-1">
-                    *712*615456085*{planPrice}#
+                  <span className="text-[10px] text-slate-500">Koodhka Tooska ah:</span>
+                  <div className="text-lg font-black text-blue-700 my-1 tracking-wider">
+                    {getDialCode()}
                   </div>
+                  
+                  {/* Batoonka "Hadda Dir" */}
                   <a 
-                    href={`tel:*712*615456085*${planPrice}%23`}
-                    className="inline-block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 rounded-xl shadow-md mt-1">
-                    📞 Wac Hadda
+                    href={`tel:${getDialCode().replace('#', '%23')}`}
+                    className="inline-block w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl shadow-md mt-1">
+                    📞 Hadda Dir (Wac Koodhka)
                   </a>
+                </div>
+
+                {/* Batoonka WhatsApp Kala Xiriir */}
+                <div className="pt-1">
+                  <p className="text-[11px] text-slate-500 mb-2">Marka aad lacagta dirto kaddib:</p>
+                  <button 
+                    onClick={() => { setShowVipModal(false); setShowWhatsAppModal(true); }}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl shadow flex items-center justify-center gap-2">
+                    <span>💬</span> WhatsApp Kala Xiriir
+                  </button>
                 </div>
               </div>
             )}
@@ -634,14 +647,49 @@ export default function App() {
         </div>
       )}
 
-      {/* 5. FLOATING WHATSAPP BUTTON */}
-      <a 
-        href="https://wa.me/252615456085?text=Asc%20Aveena%20Media%20VIP"
-        target="_blank"
-        rel="noreferrer"
-        className="fixed bottom-20 right-4 z-40 bg-green-500 text-white p-3 rounded-full shadow-lg hover:scale-110 transition flex items-center justify-center text-lg">
+      {/* 4. WHATSAPP CHOOSER MODAL (3 LAMBAR) */}
+      {showWhatsAppModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-100 w-full max-w-sm rounded-3xl p-5 relative shadow-2xl animate-fade-in">
+            <button onClick={() => setShowWhatsAppModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">✕</button>
+
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl mx-auto flex items-center justify-center text-2xl mb-2">
+                💬
+              </div>
+              <h3 className="text-base font-black text-slate-900">Nagala Soo Xiriir WhatsApp</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Dooro lambarka aad doonayso inaad la hadasho:</p>
+            </div>
+
+            <div className="space-y-2.5">
+              {WHATSAPP_NUMBERS.map((item, index) => (
+                <a 
+                  key={index}
+                  href={`https://wa.me/${item.number}?text=Asc%20Aveena%20Media%20VIP%20ayaan%20lacagteeda%20diray`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-3 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200 rounded-2xl flex items-center justify-between transition">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-emerald-600 text-base">🟢</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800">{item.label}</h4>
+                      <p className="text-[11px] font-semibold text-emerald-700">{item.display}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs bg-emerald-600 text-white px-2.5 py-1 rounded-lg font-bold">Fur ➔</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. FLOATING WHATSAPP BUTTON (Furaya 3-da Lambar) */}
+      <button 
+        onClick={() => setShowWhatsAppModal(true)}
+        className="fixed bottom-20 right-4 z-40 bg-emerald-500 hover:bg-emerald-600 text-white p-3 rounded-full shadow-lg hover:scale-110 transition flex items-center justify-center text-xl">
         💬
-      </a>
+      </button>
 
       {/* 6. BOTTOM NAVIGATION (Blue & White) */}
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2 flex justify-around items-center text-[10px] text-slate-500">
@@ -682,4 +730,4 @@ export default function App() {
 
     </div>
   );
-            }
+          }
