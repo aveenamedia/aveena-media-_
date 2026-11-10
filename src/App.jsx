@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// Xogta Filimada Bilowga ah
+// Xogta Filimada
 const INITIAL_MOVIES = [
   {
     id: 1,
@@ -64,7 +64,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [currentView, setCurrentView] = useState('browse'); // 'browse' | 'watch' | 'admin'
+  const [currentView, setCurrentView] = useState('browse');
   const [selectedMovie, setSelectedMovie] = useState(movies[0]);
   const [selectedEpisode, setSelectedEpisode] = useState(movies[0]?.episodes[0]);
 
@@ -74,7 +74,7 @@ export default function App() {
   const [showVipModal, setShowVipModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [vipStep, setVipStep] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState('HORMUUD'); // 'HORMUUD' | 'SOMTEL'
+  const [paymentMethod, setPaymentMethod] = useState('HORMUUD');
   const [planPrice, setPlanPrice] = useState('3');
 
   // Auth Inputs
@@ -83,7 +83,7 @@ export default function App() {
   const [authName, setAuthName] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Admin Add / Edit State
+  // Admin Add / Edit
   const [editingMovieId, setEditingMovieId] = useState(null);
   const [movieTitle, setMovieTitle] = useState('');
   const [movieImage, setMovieImage] = useState('');
@@ -103,12 +103,11 @@ export default function App() {
     localStorage.setItem('aveena_current_user', JSON.stringify(currentUser));
   }, [currentUser]);
 
-  // LOGIN & REGISTER
+  // Auth Handler
   const handleAuth = (e) => {
     e.preventDefault();
     setAuthError('');
 
-    // Admin Credentials
     if (authEmail.trim().toLowerCase() === 'admin@aveena.com' && authPassword === 'admin123') {
       const adminUser = { name: 'Super Admin', email: authEmail, role: 'admin' };
       setCurrentUser(adminUser);
@@ -120,15 +119,15 @@ export default function App() {
 
     if (authMode === 'register') {
       if (!authName || !authEmail || !authPassword) {
-        setAuthError('Fadlan buuxi dhammaan meelaha bannaan.');
+        setAuthError('Fadlan buuxi meelaha bannaan.');
         return;
       }
       const existingUser = users.find(u => u.email.toLowerCase() === authEmail.toLowerCase());
       if (existingUser) {
-        setAuthError('Email-kan mar hore ayaa la isticmaalay!');
+        setAuthError('Email-kan mar hore ayaa la qaatay!');
         return;
       }
-      const newUser = { name: authName, email: authEmail, password: authPassword, role: 'user', isVip: false };
+      const newUser = { name: authName, email: authEmail, password: authPassword, role: 'user' };
       setUsers([...users, newUser]);
       setCurrentUser(newUser);
       setShowAuthModal(false);
@@ -158,16 +157,15 @@ export default function App() {
     localStorage.removeItem('aveena_current_user');
   };
 
-  // ADMIN: Add or Update Movie
+  // Admin Save Movie
   const handleSaveMovie = (e) => {
     e.preventDefault();
     if (!movieTitle || !movieVideoUrl) {
-      alert('Geli ugu yaraan Cinwaanka iyo Link-ga Fembed');
+      alert('Geli Cinwaanka iyo Link-ga Fembed');
       return;
     }
 
     if (editingMovieId) {
-      // Update existing movie
       setMovies(movies.map(m => {
         if (m.id === editingMovieId) {
           return {
@@ -176,9 +174,7 @@ export default function App() {
             image: movieImage || m.image,
             description: movieDesc,
             isVip: movieIsVip,
-            episodes: [
-              { ...m.episodes[0], videoUrl: movieVideoUrl }
-            ]
+            episodes: [{ ...m.episodes[0], videoUrl: movieVideoUrl }]
           };
         }
         return m;
@@ -186,7 +182,6 @@ export default function App() {
       setEditingMovieId(null);
       alert('Filimka si guul leh ayaa wax looga beddelay!');
     } else {
-      // Add new movie
       const created = {
         id: Date.now(),
         title: movieTitle,
@@ -194,16 +189,13 @@ export default function App() {
         rating: "9.0",
         isVip: movieIsVip,
         image: movieImage || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80",
-        description: movieDesc || "Filim cusub oo AVEENA MEDIA lagu soo kordhiyay.",
-        episodes: [
-          { id: 1, title: "Qaybta 1-aad (Full)", duration: "25m", videoUrl: movieVideoUrl }
-        ]
+        description: movieDesc || "Filim cusub oo AVEENA MEDIA.",
+        episodes: [{ id: 1, title: "Qaybta 1-aad", duration: "25m", videoUrl: movieVideoUrl }]
       };
       setMovies([created, ...movies]);
       alert('Filim cusub ayaa lagu daray!');
     }
 
-    // Reset Form
     setMovieTitle('');
     setMovieImage('');
     setMovieVideoUrl('');
@@ -211,7 +203,6 @@ export default function App() {
     setMovieIsVip(false);
   };
 
-  // Populate form for editing
   const startEditing = (movie) => {
     setEditingMovieId(movie.id);
     setMovieTitle(movie.title);
@@ -244,19 +235,17 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // USSD Codes
+  // USSD Dial Action
   const getDialCode = () => {
-    if (paymentMethod === 'HORMUUD') {
-      return `*712*771795014*${planPrice}#`;
-    } else {
-      return `*712*615456085*${planPrice}#`; // Somtel / Kii hore
-    }
+    return paymentMethod === 'HORMUUD' 
+      ? `*712*771795014*${planPrice}#`
+      : `*712*615456085*${planPrice}#`;
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-24 select-none">
       
-      {/* 1. TOP HEADER (Blue & White) */}
+      {/* 1. HEADER */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-blue-100 shadow-sm">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('browse')}>
           <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-blue-500/30">
@@ -296,7 +285,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* 2. MAIN VIEWS */}
+      {/* 2. VIEWS */}
       {currentView === 'admin' ? (
         /* ADMIN VIEW */
         <div className="max-w-2xl mx-auto p-4 animate-fade-in">
@@ -305,7 +294,6 @@ export default function App() {
             <button onClick={() => setCurrentView('browse')} className="text-xs text-blue-600 font-bold">← Bogga Hore</button>
           </div>
 
-          {/* Form: Add or Edit */}
           <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm mb-6">
             <h3 className="font-bold text-sm text-slate-800 mb-3">
               {editingMovieId ? '✏️ Wax ka beddel Filimka' : '➕ Ku dar Filim Cusub'}
@@ -352,7 +340,7 @@ export default function App() {
                 <textarea 
                   value={movieDesc} 
                   onChange={(e) => setMovieDesc(e.target.value)}
-                  placeholder="Faahfaahin kooban..."
+                  placeholder="Faahfaahin..."
                   className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-blue-600"
                 />
               </div>
@@ -381,7 +369,7 @@ export default function App() {
             </form>
           </div>
 
-          {/* Movies List with Edit & Delete */}
+          {/* Movies List */}
           <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm">
             <h3 className="font-bold text-sm text-slate-800 mb-3">Liiska Filimada ({movies.length})</h3>
             <div className="space-y-2.5">
@@ -530,7 +518,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 3. VIP PAYMENT MODAL (Hormuud & Somtel) */}
+      {/* 3. VIP PAYMENT MODAL WITH OFFICIAL LOGOS */}
       {showVipModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 w-full max-w-sm rounded-3xl p-5 relative shadow-2xl">
@@ -549,46 +537,59 @@ export default function App() {
               ))}
             </div>
 
-            {/* Step 1: Network Selection */}
+            {/* STEP 1: LOGOS FOR HORMUUD & SOMTEL */}
             {vipStep === 1 && (
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 <p className="text-xs font-semibold text-slate-700">1. Dooro shirkadda aad ku bixinayso:</p>
                 
-                {/* Hormuud EVC Plus */}
+                {/* Hormuud EVC Plus with Logo */}
                 <button 
                   onClick={() => { setPaymentMethod('HORMUUD'); setVipStep(2); }}
-                  className="w-full p-3 bg-emerald-50 rounded-2xl border border-emerald-200 hover:border-emerald-600 flex items-center justify-between text-left transition">
+                  className="w-full p-3.5 bg-emerald-50/60 hover:bg-emerald-50 rounded-2xl border-2 border-emerald-300 hover:border-emerald-600 flex items-center justify-between text-left transition shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-base shadow">
-                      H
+                    {/* Hormuud Exact SVG Logo */}
+                    <div className="w-12 h-12 bg-white rounded-xl p-1 border border-emerald-200 flex items-center justify-center shadow-sm">
+                      <svg viewBox="0 0 100 100" className="w-10 h-10">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="#2db34a" strokeWidth="8" strokeDasharray="210 60" transform="rotate(-40 50 50)" />
+                        <path d="M38 35 v30 M54 35 v30 M38 50 h16" stroke="#2db34a" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="64" cy="42" r="3" fill="#0099ff" />
+                        <path d="M70 36 a10 10 0 0 1 0 14" fill="none" stroke="#0099ff" strokeWidth="3.5" strokeLinecap="round" />
+                        <path d="M76 30 a18 18 0 0 1 0 24" fill="none" stroke="#2db34a" strokeWidth="3.5" strokeLinecap="round" />
+                        <path d="M82 24 a26 26 0 0 1 0 34" fill="none" stroke="#2db34a" strokeWidth="4" strokeLinecap="round" />
+                      </svg>
                     </div>
                     <div>
-                      <h4 className="font-bold text-xs text-emerald-800">EVC PLUS (Hormuud)</h4>
-                      <p className="text-[10px] text-emerald-600">Lambarka: 771795014</p>
+                      <h4 className="font-bold text-xs text-emerald-900">EVC PLUS (Hormuud)</h4>
+                      <p className="text-[11px] font-black text-emerald-700">77 179 5014</p>
                     </div>
                   </div>
-                  <span className="text-emerald-700 font-bold text-xs">➔</span>
+                  <span className="text-emerald-700 font-bold text-sm">➔</span>
                 </button>
 
-                {/* Somtel eDahab */}
+                {/* Somtel eDahab with Logo */}
                 <button 
                   onClick={() => { setPaymentMethod('SOMTEL'); setVipStep(2); }}
-                  className="w-full p-3 bg-amber-50 rounded-2xl border border-amber-200 hover:border-amber-600 flex items-center justify-between text-left transition">
+                  className="w-full p-3.5 bg-amber-50/60 hover:bg-amber-50 rounded-2xl border-2 border-amber-300 hover:border-amber-500 flex items-center justify-between text-left transition shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-base shadow">
-                      S
+                    {/* Somtel Exact Yellow Logo */}
+                    <div className="w-12 h-12 bg-[#fed100] rounded-xl flex flex-col items-center justify-center p-1 shadow-sm">
+                      <svg viewBox="0 0 40 30" className="w-7 h-5">
+                        <path d="M20 5 C26 10 30 18 25 25 C20 30 14 28 12 22 C10 16 15 10 20 5 Z" fill="#231f20"/>
+                        <path d="M18 13 C14 19 18 25 22 23 C20 21 18 17 18 13 Z" fill="#fed100"/>
+                      </svg>
+                      <span className="text-[8px] font-black text-black tracking-tight leading-none">somtel</span>
                     </div>
                     <div>
-                      <h4 className="font-bold text-xs text-amber-900">eDAHAB (Somtel)</h4>
-                      <p className="text-[10px] text-amber-600">Lambarkii Hore</p>
+                      <h4 className="font-bold text-xs text-amber-950">eDAHAB (Somtel)</h4>
+                      <p className="text-[11px] font-black text-amber-700">61 545 6085</p>
                     </div>
                   </div>
-                  <span className="text-amber-700 font-bold text-xs">➔</span>
+                  <span className="text-amber-700 font-bold text-sm">➔</span>
                 </button>
               </div>
             )}
 
-            {/* Step 2: Plan Selection */}
+            {/* STEP 2: PLAN */}
             {vipStep === 2 && (
               <div className="space-y-2.5">
                 <p className="text-xs font-semibold text-slate-700">2. Dooro Muddada:</p>
@@ -613,70 +614,95 @@ export default function App() {
               </div>
             )}
 
-            {/* Step 3: USSD & Hadda Dir + WhatsApp */}
+            {/* STEP 3: ONLY "HADDA DIR" & "WHATSAPP" (NO USSD CODE TEXT) */}
             {vipStep === 3 && (
-              <div className="space-y-3 text-center">
-                <p className="text-xs text-slate-700 font-semibold">3. Bixi Lacagta ({paymentMethod === 'HORMUUD' ? 'Hormuud' : 'Somtel'}):</p>
-                
-                <div className="bg-blue-50 p-3.5 rounded-2xl border border-blue-200">
-                  <span className="text-[10px] text-slate-500">Koodhka Tooska ah:</span>
-                  <div className="text-lg font-black text-blue-700 my-1 tracking-wider">
-                    {getDialCode()}
+              <div className="space-y-4 pt-1">
+                {/* Selected Provider Summary Card */}
+                <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
+                  paymentMethod === 'HORMUUD' ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
+                }`}>
+                  {paymentMethod === 'HORMUUD' ? (
+                    <div className="w-12 h-12 bg-white rounded-xl p-1 border border-emerald-200 flex items-center justify-center">
+                      <svg viewBox="0 0 100 100" className="w-10 h-10">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="#2db34a" strokeWidth="8" strokeDasharray="210 60" transform="rotate(-40 50 50)" />
+                        <path d="M38 35 v30 M54 35 v30 M38 50 h16" stroke="#2db34a" strokeWidth="8" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 bg-[#fed100] rounded-xl flex flex-col items-center justify-center p-1">
+                      <span className="text-[10px] font-black text-black">somtel</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-900">
+                      {paymentMethod === 'HORMUUD' ? 'Hormuud EVC Plus' : 'Somtel eDahab'}
+                    </h4>
+                    <p className="text-sm font-black text-blue-700">
+                      Lacagta: ${planPrice}
+                    </p>
+                    <p className="text-[11px] font-semibold text-slate-500">
+                      Ku dir: {paymentMethod === 'HORMUUD' ? '771795014' : '615456085'}
+                    </p>
                   </div>
-                  
-                  {/* Batoonka "Hadda Dir" */}
-                  <a 
-                    href={`tel:${getDialCode().replace('#', '%23')}`}
-                    className="inline-block w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl shadow-md mt-1">
-                    📞 Hadda Dir (Wac Koodhka)
-                  </a>
                 </div>
 
-                {/* Batoonka WhatsApp Kala Xiriir */}
-                <div className="pt-1">
-                  <p className="text-[11px] text-slate-500 mb-2">Marka aad lacagta dirto kaddib:</p>
-                  <button 
-                    onClick={() => { setShowVipModal(false); setShowWhatsAppModal(true); }}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl shadow flex items-center justify-center gap-2">
-                    <span>💬</span> WhatsApp Kala Xiriir
-                  </button>
-                </div>
+                {/* 1. BATOONKA HADDA DIR */}
+                <a 
+                  href={`tel:${getDialCode().replace('#', '%23')}`}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3.5 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition active:scale-95">
+                  <span>💸</span> Hadda Dir
+                </a>
+
+                {/* 2. BATOONKA WHATSAPP KALA XIRIIR */}
+                <button 
+                  onClick={() => { setShowVipModal(false); setShowWhatsAppModal(true); }}
+                  className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-sm py-3.5 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition active:scale-95">
+                  {/* WhatsApp SVG Logo */}
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+                    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM12.05 20.15C10.56 20.15 9.11 19.76 7.85 19.01L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.8 13.47 3.8 11.91C3.8 7.37 7.5 3.67 12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.05 20.15ZM16.57 14.37C16.32 14.25 15.1 13.65 14.88 13.56C14.65 13.48 14.49 13.44 14.32 13.69C14.16 13.93 13.69 14.49 13.55 14.65C13.41 14.81 13.26 14.84 13.02 14.71C12.77 14.59 11.98 14.33 11.04 13.49C10.31 12.84 9.81 12.04 9.67 11.8C9.53 11.55 9.66 11.42 9.78 11.3C9.89 11.19 10.03 11.01 10.15 10.87C10.27 10.73 10.31 10.63 10.39 10.47C10.47 10.3 10.43 10.16 10.37 10.04C10.31 9.92 9.82 8.71 9.61 8.22C9.41 7.74 9.21 7.8 9.06 7.8C8.92 7.79 8.76 7.79 8.59 7.79C8.43 7.79 8.16 7.85 7.94 8.09C7.71 8.34 7.08 8.93 7.08 10.13C7.08 11.33 7.96 12.49 8.08 12.65C8.2 12.82 9.8 15.28 12.26 16.34C12.85 16.59 13.3 16.74 13.66 16.85C14.25 17.04 14.78 17.01 15.21 16.95C15.69 16.88 16.68 16.35 16.89 15.77C17.09 15.19 17.09 14.7 17.03 14.59C16.97 14.49 16.82 14.43 16.57 14.37Z" />
+                  </svg>
+                  <span>WhatsApp Kala Xiriir</span>
+                </button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 4. WHATSAPP CHOOSER MODAL (3 LAMBAR) */}
+      {/* 4. WHATSAPP MODAL WITH 3 NUMBERS & LOGO */}
       {showWhatsAppModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 w-full max-w-sm rounded-3xl p-5 relative shadow-2xl animate-fade-in">
             <button onClick={() => setShowWhatsAppModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">✕</button>
 
             <div className="text-center mb-4">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl mx-auto flex items-center justify-center text-2xl mb-2">
-                💬
+              {/* WhatsApp Green Icon */}
+              <div className="w-14 h-14 bg-[#25D366] text-white rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-green-500/30 mb-2">
+                <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current">
+                  <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM12.05 20.15C10.56 20.15 9.11 19.76 7.85 19.01L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.8 13.47 3.8 11.91C3.8 7.37 7.5 3.67 12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.05 20.15ZM16.57 14.37C16.32 14.25 15.1 13.65 14.88 13.56C14.65 13.48 14.49 13.44 14.32 13.69C14.16 13.93 13.69 14.49 13.55 14.65C13.41 14.81 13.26 14.84 13.02 14.71C12.77 14.59 11.98 14.33 11.04 13.49C10.31 12.84 9.81 12.04 9.67 11.8C9.53 11.55 9.66 11.42 9.78 11.3C9.89 11.19 10.03 11.01 10.15 10.87C10.27 10.73 10.31 10.63 10.39 10.47C10.47 10.3 10.43 10.16 10.37 10.04C10.31 9.92 9.82 8.71 9.61 8.22C9.41 7.74 9.21 7.8 9.06 7.8C8.92 7.79 8.76 7.79 8.59 7.79C8.43 7.79 8.16 7.85 7.94 8.09C7.71 8.34 7.08 8.93 7.08 10.13C7.08 11.33 7.96 12.49 8.08 12.65C8.2 12.82 9.8 15.28 12.26 16.34C12.85 16.59 13.3 16.74 13.66 16.85C14.25 17.04 14.78 17.01 15.21 16.95C15.69 16.88 16.68 16.35 16.89 15.77C17.09 15.19 17.09 14.7 17.03 14.59C16.97 14.49 16.82 14.43 16.57 14.37Z" />
+                </svg>
               </div>
               <h3 className="text-base font-black text-slate-900">Nagala Soo Xiriir WhatsApp</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Dooro lambarka aad doonayso inaad la hadasho:</p>
+              <p className="text-xs text-slate-400 mt-0.5">Dooro lambarka aad la hadlayso:</p>
             </div>
 
             <div className="space-y-2.5">
               {WHATSAPP_NUMBERS.map((item, index) => (
                 <a 
                   key={index}
-                  href={`https://wa.me/${item.number}?text=Asc%20Aveena%20Media%20VIP%20ayaan%20lacagteeda%20diray`}
+                  href={`https://wa.me/${item.number}?text=Asc%20Aveena%20Media%20VIP%20ayaa%20lacagteeda%20diray`}
                   target="_blank"
                   rel="noreferrer"
                   className="p-3 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200 rounded-2xl flex items-center justify-between transition">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-emerald-600 text-base">🟢</span>
+                    <span className="text-emerald-600 text-lg">🟢</span>
                     <div>
                       <h4 className="text-xs font-bold text-slate-800">{item.label}</h4>
-                      <p className="text-[11px] font-semibold text-emerald-700">{item.display}</p>
+                      <p className="text-[11px] font-black text-emerald-700">{item.display}</p>
                     </div>
                   </div>
-                  <span className="text-xs bg-emerald-600 text-white px-2.5 py-1 rounded-lg font-bold">Fur ➔</span>
+                  <span className="text-xs bg-[#25D366] text-white px-3 py-1.5 rounded-xl font-bold shadow-sm">Fur ➔</span>
                 </a>
               ))}
             </div>
@@ -684,14 +710,16 @@ export default function App() {
         </div>
       )}
 
-      {/* 5. FLOATING WHATSAPP BUTTON (Furaya 3-da Lambar) */}
+      {/* 5. FLOATING WHATSAPP BUTTON */}
       <button 
         onClick={() => setShowWhatsAppModal(true)}
-        className="fixed bottom-20 right-4 z-40 bg-emerald-500 hover:bg-emerald-600 text-white p-3 rounded-full shadow-lg hover:scale-110 transition flex items-center justify-center text-xl">
-        💬
+        className="fixed bottom-20 right-4 z-40 bg-[#25D366] hover:bg-[#20ba59] text-white p-3 rounded-full shadow-xl hover:scale-110 transition flex items-center justify-center">
+        <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current">
+          <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM12.05 20.15C10.56 20.15 9.11 19.76 7.85 19.01L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.8 13.47 3.8 11.91C3.8 7.37 7.5 3.67 12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.05 20.15ZM16.57 14.37C16.32 14.25 15.1 13.65 14.88 13.56C14.65 13.48 14.49 13.44 14.32 13.69C14.16 13.93 13.69 14.49 13.55 14.65C13.41 14.81 13.26 14.84 13.02 14.71C12.77 14.59 11.98 14.33 11.04 13.49C10.31 12.84 9.81 12.04 9.67 11.8C9.53 11.55 9.66 11.42 9.78 11.3C9.89 11.19 10.03 11.01 10.15 10.87C10.27 10.73 10.31 10.63 10.39 10.47C10.47 10.3 10.43 10.16 10.37 10.04C10.31 9.92 9.82 8.71 9.61 8.22C9.41 7.74 9.21 7.8 9.06 7.8C8.92 7.79 8.76 7.79 8.59 7.79C8.43 7.79 8.16 7.85 7.94 8.09C7.71 8.34 7.08 8.93 7.08 10.13C7.08 11.33 7.96 12.49 8.08 12.65C8.2 12.82 9.8 15.28 12.26 16.34C12.85 16.59 13.3 16.74 13.66 16.85C14.25 17.04 14.78 17.01 15.21 16.95C15.69 16.88 16.68 16.35 16.89 15.77C17.09 15.19 17.09 14.7 17.03 14.59C16.97 14.49 16.82 14.43 16.57 14.37Z" />
+        </svg>
       </button>
 
-      {/* 6. BOTTOM NAVIGATION (Blue & White) */}
+      {/* 6. BOTTOM NAVIGATION */}
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2 flex justify-around items-center text-[10px] text-slate-500">
         <button 
           onClick={() => setCurrentView('browse')}
@@ -730,4 +758,4 @@ export default function App() {
 
     </div>
   );
-          }
+    }
