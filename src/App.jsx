@@ -20,22 +20,28 @@ const WHATSAPP_NUMBERS = [
 export default function App() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeNav, setActiveNav] = useState('Home'); // Home | Movies | Series | Shorts | VIP
-  const [currentView, setCurrentView] = useState('browse'); // browse | detail | watch | admin
+  const [activeNav, setActiveNav] = useState('Home'); // Home | Movies | Series | Kartoonno | Shorts | VIP
+  const [currentView, setCurrentView] = useState('browse'); // browse | watch | admin
 
   const [selectedMovie, setSelectedMovie] = useState(null);
-  const [selectedEpisode, setSelectedEpisode] = useState(null);
 
-  // User & Admin Auth State
+  // User & Admin Auth
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('aveena_user');
     return saved ? JSON.parse(saved) : null;
   });
 
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register' | 'verify'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authError, setAuthError] = useState('');
+  
+  // Verification OTP State
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [userOtpInput, setUserOtpInput] = useState('');
+  const [tempUser, setTempUser] = useState(null);
 
   // Modals
   const [showVipModal, setShowVipModal] = useState(false);
@@ -44,17 +50,51 @@ export default function App() {
   const [paymentMethod, setPaymentMethod] = useState('HORMUUD');
   const [planPrice, setPlanPrice] = useState('3');
 
-  // Admin Form State (Add / Edit Show)
+  // Admin Form Fields (Wax walba oo aad codsatay)
   const [editingId, setEditingId] = useState(null);
   const [formTitle, setFormTitle] = useState('');
-  const [formType, setFormType] = useState('Movies'); // Movies | Series | Shorts
-  const [formGenre, setFormGenre] = useState('');
+  const [formType, setFormType] = useState('Series'); // Movies | Series | Kartoonno | Shorts
+  const [formEpisode, setFormEpisode] = useState(''); // Episode (tusaale: EP1)
+  const [formDuration, setFormDuration] = useState(''); // Daqiiqado (tusaale: 28m)
   const [formPoster, setFormPoster] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formVideoUrl, setFormVideoUrl] = useState('');
   const [formIsVip, setFormIsVip] = useState(false);
 
-  // Fetch Movies from Supabase (Xogta dhabta ah)
+  // MATOORKA BEDDELA YOUTUBE SHORTS & FEMBED (100% SHARCI AH)
+  const formatVideoUrl = (url) => {
+    if (!url) return '';
+    let clean = url.trim();
+
+    // Haddii iframe lasoo dhejiyay
+    if (clean.includes('<iframe')) {
+      const match = clean.match(/src=["'](.*?)["']/);
+      if (match) clean = match[1];
+    }
+
+    // 1. YouTube Shorts Fix: /shorts/ID -> /embed/ID
+    if (clean.includes('/shorts/')) {
+      const parts = clean.split('/shorts/')[1];
+      const videoId = parts.split(/[?&/]/)[0];
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&rel=0`;
+    }
+
+    // 2. YouTube Caadiga ah: watch?v=ID -> /embed/ID
+    if (clean.includes('watch?v=')) {
+      const videoId = clean.split('watch?v=')[1].split(/[?&]/)[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+
+    // 3. youtu.be/ID -> /embed/ID
+    if (clean.includes('youtu.be/')) {
+      const videoId = clean.split('youtu.be/')[1].split(/[?&]/)[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+
+    return clean;
+  };
+
+  // KASOO QAAD SUPABASE
   const loadSupabaseData = async () => {
     try {
       setLoading(true);
@@ -81,32 +121,67 @@ export default function App() {
     localStorage.setItem('aveena_user', JSON.stringify(currentUser));
   }, [currentUser]);
 
-  // Unified Login (Admin & Users use this same form)
-  const handleLogin = (e) => {
+  // LOGIN & REGISTER IYO VERIFICATION CODE FLOW
+  const handleAuthSubmit = (e) => {
     e.preventDefault();
-    setLoginError('');
+    setAuthError('');
 
-    // Haddii ay tahay xogta Admin-kaaga sirta ah
-    if (loginEmail.trim().toLowerCase() === 'admin@aveena.com' && loginPassword === 'admin123') {
-      const admin = { name: 'Admin', email: loginEmail, role: 'admin' };
+    // Admin Login
+    if (authEmail.trim().toLowerCase() === 'admin@aveena.com' && authPassword === 'admin123') {
+      const admin = { name: 'Admin', email: authEmail, role: 'admin' };
       setCurrentUser(admin);
       setShowLoginModal(false);
       setCurrentView('admin');
-      setLoginEmail('');
-      setLoginPassword('');
+      resetAuth();
       return;
     }
 
-    // User Caadi ah
-    if (loginEmail && loginPassword) {
-      const user = { name: loginEmail.split('@')[0], email: loginEmail, role: 'user' };
+    // Is-diiwaangelin (Register -> Generate Code)
+    if (authMode === 'register') {
+      if (!authName || !authEmail || !authPassword) {
+        setAuthError('Fadlan buuxi dhammaan meelaha bannaan.');
+        return;
+      }
+      // Samee 4-digit code (Koodh 4 god ah)
+      const code = Math.floor(1000 + Math.random() * 9000).toString();
+      setGeneratedOtp(code);
+      setTempUser({ name: authName, email: authEmail });
+      setAuthMode('verify');
+      alert(`Koodhkaaga xaqiijinta koontada waa: ${code}`);
+      return;
+    }
+
+    // Verify Code (Geli Koodhkii)
+    if (authMode === 'verify') {
+      if (userOtpInput.trim() === generatedOtp) {
+        setCurrentUser(tempUser);
+        setShowLoginModal(false);
+        resetAuth();
+        alert('Hambalyo! Koontadaada si guul leh ayaa loo xaqiijiyay.');
+      } else {
+        setAuthError('Koodhka aad galisay waa khalad!');
+      }
+      return;
+    }
+
+    // Login Caadi ah
+    if (authEmail && authPassword) {
+      const user = { name: authEmail.split('@')[0], email: authEmail, role: 'user' };
       setCurrentUser(user);
       setShowLoginModal(false);
-      setLoginEmail('');
-      setLoginPassword('');
+      resetAuth();
     } else {
-      setLoginError('Fadlan geli email iyo password sax ah');
+      setAuthError('Geli email iyo password sax ah');
     }
+  };
+
+  const resetAuth = () => {
+    setAuthEmail('');
+    setAuthPassword('');
+    setAuthName('');
+    setUserOtpInput('');
+    setAuthError('');
+    setAuthMode('login');
   };
 
   const handleLogout = () => {
@@ -115,7 +190,7 @@ export default function App() {
     localStorage.removeItem('aveena_user');
   };
 
-  // Admin Save Movie/Series/Short directly to Supabase
+  // ADMIN: SAVE TO SUPABASE
   const handleSaveToDatabase = async (e) => {
     e.preventDefault();
     if (!formTitle || !formVideoUrl) {
@@ -123,14 +198,19 @@ export default function App() {
       return;
     }
 
+    const cleanedUrl = formatVideoUrl(formVideoUrl);
+
+    // Cinwaanka buuxa oo wata Episode-ka
+    const fullTitle = formEpisode ? `${formTitle} - ${formEpisode}` : formTitle;
+
     const payload = {
-      title: formTitle,
-      year: formType, // Movies, Series, ama Shorts
-      rating: "9.0",
+      title: fullTitle,
+      year: formType, // Movies | Series | Kartoonno | Shorts
+      rating: formDuration || "25m", // Daqiiqadaha
       is_vip: formIsVip,
       image: formPoster || "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80",
       description: formDesc || "Video cusub oo AVEENA MEDIA.",
-      video_url: formVideoUrl
+      video_url: cleanedUrl
     };
 
     if (editingId) {
@@ -147,10 +227,12 @@ export default function App() {
         headers: HEADERS,
         body: JSON.stringify(payload)
       });
-      alert('Video cusub ayaa toos loogu daray Database-ka!');
+      alert('Video-ga si toos ah ayaa loogu daray Database-ka!');
     }
 
     setFormTitle('');
+    setFormEpisode('');
+    setFormDuration('');
     setFormPoster('');
     setFormVideoUrl('');
     setFormDesc('');
@@ -161,7 +243,8 @@ export default function App() {
   const startEdit = (m) => {
     setEditingId(m.id);
     setFormTitle(m.title);
-    setFormType(m.year || 'Movies');
+    setFormType(m.year || 'Series');
+    setFormDuration(m.rating || '');
     setFormPoster(m.image || '');
     setFormVideoUrl(m.video_url || '');
     setFormDesc(m.description || '');
@@ -185,11 +268,12 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Filter List by Bottom Nav
+  // Filter Videos by Category
   const getFilteredVideos = () => {
     if (activeNav === 'Home') return movies.filter(m => m.year !== 'Shorts');
     if (activeNav === 'Movies') return movies.filter(m => m.year === 'Movies');
     if (activeNav === 'Series') return movies.filter(m => m.year === 'Series');
+    if (activeNav === 'Kartoonno') return movies.filter(m => m.year === 'Kartoonno');
     if (activeNav === 'Shorts') return movies.filter(m => m.year === 'Shorts');
     return movies;
   };
@@ -234,7 +318,7 @@ export default function App() {
             </button>
           ) : (
             <button 
-              onClick={() => setShowLoginModal(true)}
+              onClick={() => { setAuthMode('login'); setShowLoginModal(true); }}
               className="text-xs bg-[#12214d] text-blue-400 font-bold px-3 py-1.5 rounded-xl border border-blue-900/50">
               Gal
             </button>
@@ -244,7 +328,7 @@ export default function App() {
 
       {/* 2. MAIN VIEWS */}
 
-      {/* A. ADMIN VIEW (ONLY VISIBLE WHEN LOGGED IN AS ADMIN) */}
+      {/* A. ADMIN VIEW */}
       {currentView === 'admin' && currentUser?.role === 'admin' ? (
         <div className="max-w-xl mx-auto p-4 animate-fade-in">
           <div className="flex justify-between items-center mb-4">
@@ -254,12 +338,12 @@ export default function App() {
 
           <div className="bg-[#101c42] p-5 rounded-2xl border border-blue-900/50 mb-6 shadow-xl">
             <h3 className="font-bold text-xs text-white mb-3">
-              {editingId ? 'Wax ka beddel Video-ga' : 'Ku dar Video Cusub'}
+              {editingId ? 'Wax ka beddel Video-ga' : 'Ku dar Video / Musalsal Cusub'}
             </h3>
             
             <form onSubmit={handleSaveToDatabase} className="space-y-3">
               <div>
-                <label className="text-[11px] font-semibold text-slate-300">Cinwaanka</label>
+                <label className="text-[11px] font-semibold text-slate-300">Cinwaanka Dramada / Filimka</label>
                 <input 
                   type="text" 
                   value={formTitle} 
@@ -270,20 +354,47 @@ export default function App() {
                 />
               </div>
 
+              {/* Nooca (Category) - Waxaa ku jira Kartoonno */}
               <div>
                 <label className="text-[11px] font-semibold text-slate-300">Nooca (Category)</label>
                 <select 
                   value={formType} 
                   onChange={(e) => setFormType(e.target.value)}
                   className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white">
-                  <option value="Movies">Movies (Filimaan)</option>
                   <option value="Series">Series (Musalsal)</option>
+                  <option value="Movies">Movies (Filimaan)</option>
+                  <option value="Kartoonno">Kartoonno (Cartoons)</option>
                   <option value="Shorts">Shorts (TikTok Style)</option>
                 </select>
               </div>
 
+              {/* Qaybta Xalqadda iyo Daqiiqadaha */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300">Xalqadda (Episode)</label>
+                  <input 
+                    type="text" 
+                    value={formEpisode} 
+                    onChange={(e) => setFormEpisode(e.target.value)}
+                    placeholder="tusaale: EP 1 ama Qaybta 1"
+                    className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300">Daqiiqadaha (Duration)</label>
+                  <input 
+                    type="text" 
+                    value={formDuration} 
+                    onChange={(e) => setFormDuration(e.target.value)}
+                    placeholder="tusaale: 28m ama 1h 45m"
+                    className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="text-[11px] font-semibold text-slate-300">Link-ga Video-ga (Fembed / YouTube)</label>
+                <label className="text-[11px] font-semibold text-slate-300">Link-ga Video-ga (Fembed / YouTube Shorts / YouTube)</label>
                 <input 
                   type="text" 
                   value={formVideoUrl} 
@@ -310,7 +421,7 @@ export default function App() {
                 <textarea 
                   value={formDesc} 
                   onChange={(e) => setFormDesc(e.target.value)}
-                  placeholder="Faahfaahin kooban..."
+                  placeholder="Sheekada kooban..."
                   className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white"
                 />
               </div>
@@ -349,7 +460,7 @@ export default function App() {
                     <img src={m.image} alt="" className="w-10 h-10 object-cover rounded-lg" />
                     <div>
                       <h4 className="text-xs font-bold text-white truncate max-w-[140px]">{m.title}</h4>
-                      <span className="text-[10px] text-blue-400">{m.year}</span>
+                      <span className="text-[10px] text-blue-400">{m.year} • {m.rating}</span>
                     </div>
                   </div>
                   <div className="flex gap-1.5">
@@ -362,11 +473,11 @@ export default function App() {
           </div>
         </div>
       ) : activeNav === 'Shorts' ? (
-        /* B. TIKTOK / REELS STYLE SHORTS VIEW */
+        /* B. TIKTOK STYLE SHORTS (TOOS U SHAQAYNAYA) */
         <div className="max-w-md mx-auto h-[calc(100vh-140px)] overflow-y-scroll snap-y snap-mandatory scrollbar-none p-2">
           {filteredList.length === 0 ? (
             <div className="text-center py-24 text-xs text-slate-400">
-              Weli wax Shorts ah laguma darin Database-ka.
+              Weli wax Shorts ah laguma darin. Gal Admin si aad YouTube Shorts ugu darto!
             </div>
           ) : (
             filteredList.map((item) => (
@@ -374,22 +485,20 @@ export default function App() {
                 key={item.id} 
                 className="relative w-full h-full snap-start rounded-3xl overflow-hidden bg-black border border-blue-900/40 mb-4 shadow-2xl flex flex-col justify-between">
                 
-                {/* Video Player */}
+                {/* Embed Video */}
                 <iframe
                   src={item.video_url}
                   className="w-full h-full border-0"
-                  allow="autoplay; fullscreen"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   title="Short"
                 />
 
-                {/* Bottom Overlay Title & Details */}
                 <div className="absolute bottom-4 left-4 right-16 z-10 pointer-events-none">
                   <h3 className="font-bold text-sm text-white drop-shadow-md">@{item.title}</h3>
                   <p className="text-xs text-slate-300 drop-shadow-md line-clamp-2 mt-1">{item.description}</p>
                 </div>
 
-                {/* Right Side Action Bar (TikTok Style) */}
                 <div className="absolute bottom-6 right-3 flex flex-col items-center gap-4 z-10">
                   <button className="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-lg text-white">
                     ❤️
@@ -405,28 +514,8 @@ export default function App() {
           )}
         </div>
       ) : currentView === 'browse' ? (
-        /* C. BROWSE MOVIES / SERIES VIEW */
+        /* C. BROWSE MOVIES / SERIES / KARTOONNO */
         <main className="p-4">
-          {/* Featured Banner (if any exists) */}
-          {filteredList.length > 0 && activeNav === 'Home' && (
-            <div className="relative w-full rounded-2xl overflow-hidden border border-blue-900/50 bg-[#101c42] p-5 shadow-xl mb-6">
-              <div className="absolute inset-0">
-                <img src={filteredList[0]?.image} alt="" className="w-full h-full object-cover opacity-35" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#101c42] via-[#101c42]/60 to-transparent"></div>
-              </div>
-
-              <div className="relative z-10 pt-16">
-                <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1 block">AVEENA FEATURED</span>
-                <h2 className="text-2xl font-black text-white mb-2 leading-tight">{filteredList[0]?.title}</h2>
-                <button 
-                  onClick={() => openMovie(filteredList[0])}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-lg">
-                  ▶ Daawo Hadda
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Section Title */}
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-bold text-sm text-white">
@@ -438,7 +527,7 @@ export default function App() {
           {/* Videos Grid */}
           {filteredList.length === 0 ? (
             <div className="text-center py-20 bg-[#101c42]/40 rounded-2xl border border-blue-900/30 text-xs text-slate-400">
-              Weli wax video ah kuma jiraan qaybtaan.
+              Weli wax video ah kuma jiraan qaybta <b>{activeNav}</b>.
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -455,6 +544,9 @@ export default function App() {
                         VIP
                       </span>
                     )}
+                    <span className="absolute bottom-2 left-2 bg-black/70 text-slate-300 text-[9px] px-1.5 py-0.5 rounded font-mono">
+                      {movie.rating || '25m'}
+                    </span>
                     <div className="absolute bottom-2 right-2 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center shadow">
                       ▶
                     </div>
@@ -482,7 +574,7 @@ export default function App() {
             <iframe
               src={selectedMovie?.video_url}
               className="absolute inset-0 w-full h-full border-0"
-              allow="autoplay; fullscreen"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               title="Player"
             />
@@ -490,51 +582,103 @@ export default function App() {
 
           <div className="mt-4 p-4 bg-[#101c42] rounded-2xl border border-blue-900/40">
             <h2 className="text-lg font-black text-white">{selectedMovie?.title}</h2>
-            <p className="text-xs text-slate-300 mt-1">{selectedMovie?.description}</p>
+            <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
+              <span className="text-blue-400 font-bold">{selectedMovie?.year}</span>
+              <span>•</span>
+              <span>{selectedMovie?.rating}</span>
+            </div>
+            <p className="text-xs text-slate-300 mt-2">{selectedMovie?.description}</p>
           </div>
         </div>
       )}
 
-      {/* 3. UNIFIED LOGIN MODAL (FAARUQ AH OO WAXBA LAGU DIIWAANGELIN) */}
+      {/* 3. LOGIN & VERIFICATION OTP MODAL */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#101c42] border border-blue-900/60 w-full max-w-sm rounded-3xl p-6 relative shadow-2xl">
             <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
 
-            <h3 className="text-base font-black text-white text-center mb-1">Gal Koontadaada</h3>
-            <p className="text-xs text-slate-400 text-center mb-4">Geli Gmail iyo Password-kaaga</p>
+            <h3 className="text-base font-black text-white text-center mb-1">
+              {authMode === 'login' ? 'Gal Koontadaada' : authMode === 'register' ? 'Is-diiwaangeli' : 'Xaqiijinta Koodhka'}
+            </h3>
+            <p className="text-xs text-slate-400 text-center mb-4">
+              {authMode === 'verify' ? 'Geli koodhkii 4-ta god ahaa ee laguu soo diray' : 'Ku biir Aveena Media'}
+            </p>
 
-            {loginError && <div className="p-2 bg-red-950/60 border border-red-800 text-red-400 text-xs rounded-xl text-center mb-3">{loginError}</div>}
+            {authError && <div className="p-2 bg-red-950/60 border border-red-800 text-red-400 text-xs rounded-xl text-center mb-3">{authError}</div>}
 
-            <form onSubmit={handleLogin} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-300">Email</label>
-                <input 
-                  type="email" 
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder=""
-                  className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white"
-                  required
-                />
-              </div>
+            <form onSubmit={handleAuthSubmit} className="space-y-3">
+              {authMode === 'register' && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Magacaaga</label>
+                  <input 
+                    type="text" 
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white"
+                    required
+                  />
+                </div>
+              )}
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300">Password</label>
-                <input 
-                  type="password" 
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder=""
-                  className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white"
-                  required
-                />
-              </div>
+              {authMode !== 'verify' && (
+                <>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Email</label>
+                    <input 
+                      type="email" 
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Password</label>
+                    <input 
+                      type="password" 
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full mt-1 p-2.5 bg-[#0a122c] border border-blue-900/60 rounded-xl text-xs text-white"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* OTP Input Field */}
+              {authMode === 'verify' && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Koodhka Xaqiijinta (4 Digits)</label>
+                  <input 
+                    type="text" 
+                    maxLength="4"
+                    value={userOtpInput}
+                    onChange={(e) => setUserOtpInput(e.target.value)}
+                    placeholder="1234"
+                    className="w-full mt-1 p-3 text-center tracking-widest text-lg font-bold bg-[#0a122c] border border-blue-500 rounded-xl text-white"
+                    required
+                  />
+                </div>
+              )}
 
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-md mt-2">
-                Gal
+                {authMode === 'login' ? 'Gal' : authMode === 'register' ? 'Dir Koodhka Xaqiijinta' : 'Xaqiiji Koontada'}
               </button>
             </form>
+
+            <div className="mt-4 pt-3 border-t border-blue-900/40 text-center">
+              {authMode === 'login' ? (
+                <p className="text-xs text-slate-400">
+                  Koonto ma lihid? <button onClick={() => { setAuthMode('register'); setAuthError(''); }} className="text-blue-400 font-bold hover:underline">Is-diiwaangeli</button>
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  Hore ma u lahayd koonto? <button onClick={() => { setAuthMode('login'); setAuthError(''); }} className="text-blue-400 font-bold hover:underline">Gal halkan</button>
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -641,8 +785,8 @@ export default function App() {
         </div>
       )}
 
-      {/* 6. BOTTOM NAVIGATION BAR (PLAIN TEXT - BILAA EMOJIS) */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 bg-[#0d183a]/95 backdrop-blur-md border-t border-blue-900/40 py-3 flex justify-around items-center text-[11px] text-slate-400 font-bold">
+      {/* 6. BOTTOM NAVIGATION (PLAiN TEXT: HOME, MOVIES, SERIES, KARTOONNO, SHORTS, VIP) */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 bg-[#0d183a]/95 backdrop-blur-md border-t border-blue-900/40 py-3 flex justify-around items-center text-[10px] text-slate-400 font-bold">
         <button 
           onClick={() => { setActiveNav('Home'); setCurrentView('browse'); }}
           className={`${activeNav === 'Home' && currentView === 'browse' ? 'text-blue-400' : 'hover:text-white'}`}>
@@ -662,6 +806,12 @@ export default function App() {
         </button>
 
         <button 
+          onClick={() => { setActiveNav('Kartoonno'); setCurrentView('browse'); }}
+          className={`${activeNav === 'Kartoonno' && currentView === 'browse' ? 'text-blue-400' : 'hover:text-white'}`}>
+          Kartoonno
+        </button>
+
+        <button 
           onClick={() => { setActiveNav('Shorts'); setCurrentView('browse'); }}
           className={`${activeNav === 'Shorts' ? 'text-blue-400' : 'hover:text-white'}`}>
           Shorts
@@ -676,4 +826,4 @@ export default function App() {
 
     </div>
   );
-                      }
+                    }
